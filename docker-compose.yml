@@ -1,0 +1,11 @@
+services:
+  web:
+    container_name: dc-web
+    image: nginx:latest
+    ports:
+      - "8080:80"
+    volumes:
+      - webvol:/usr/share/nginx/html/index.html
+    
+volumes:
+  webvol:
