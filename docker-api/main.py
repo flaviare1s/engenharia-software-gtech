@@ -3,9 +3,10 @@ import os
 import psycopg
 from fastapi import FastAPI, HTTPException, status
 
+APP_VERSION = "1.1.0"
 DATABASE_CONNECT_TIMEOUT_SECONDS = 3
 
-app = FastAPI(title="Geração Tech API")
+app = FastAPI(title="Geração Tech API", version=APP_VERSION)
 
 
 def connect_to_database() -> psycopg.Connection:
@@ -29,3 +30,8 @@ def get_health() -> dict[str, str]:
             detail="database unavailable",
         ) from error
     return {"status": "ok"}
+
+
+@app.get("/version")
+def get_version() -> str:
+    return APP_VERSION

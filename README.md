@@ -7,6 +7,7 @@ Repositório com os exercícios práticos do curso de **Software Engineer** do *
 | Exercício | Tema | Pasta |
 | --- | --- | --- |
 | [Colocando a API de pé](#colocando-a-api-de-pé) | Docker e Docker Compose | [`docker-api/`](docker-api/) |
+| [Fluxo completo em um repositório](#fluxo-completo-em-um-repositório) | Git, GitHub e Conventional Commits | [`docker-api/`](docker-api/) |
 
 ---
 
@@ -18,7 +19,7 @@ Atividade prática e individual para consolidar os conceitos de **Docker** e **D
 
 ```
 docker-api/
-├── main.py             # API FastAPI com o endpoint /health, que consulta o PostgreSQL
+├── main.py             # API FastAPI com os endpoints /health (consulta o PostgreSQL) e /version
 ├── requirements.txt    # Dependências Python com versões fixas
 ├── Dockerfile          # Imagem da API, executada com o usuário não-root appuser
 ├── .dockerignore       # Arquivos que ficam fora do contexto de build
@@ -42,6 +43,7 @@ As credenciais do banco têm valores padrão para desenvolvimento (`api`/`api`).
 | --- | --- |
 | `docker compose up -d --build` | Serviços `app` e `db` ativos e saudáveis (`healthy`) |
 | `curl -s http://localhost:8000/health` | `{"status":"ok"}` |
+| `curl -s http://localhost:8000/version` | `"1.1.0"` |
 | `docker compose exec app whoami` | `appuser` (usuário não-root) |
 
 Se o banco estiver fora do ar, o `/health` responde `503` com `{"detail":"database unavailable"}`.
@@ -59,3 +61,25 @@ Se o banco estiver fora do ar, o `/health` responde `503` com `{"detail":"databa
 docker compose down      # para e remove os containers
 docker compose down -v   # também apaga o volume com os dados do banco
 ```
+
+---
+
+### Fluxo completo em um repositório
+
+Exercício de **Git** e **GitHub**: o ciclo completo de uma mudança, da branch até a release, usando a API do exercício anterior.
+
+#### Etapas
+
+1. **Branch e commits:** a branch `feature/health-com-versao` adiciona o endpoint `GET /version`, que retorna a versão da API como string (`"1.1.0"`). Os commits seguem o [Conventional Commits](https://www.conventionalcommits.org/pt-br/), e o corpo de cada um explica o motivo da mudança, não só o que mudou.
+2. **Pull Request:** a branch é publicada no GitHub e integrada à `main` por uma Pull Request com título e descrição.
+3. **Conflito simulado:** um segundo clone altera na `main` a mesma linha que a branch mudou (`app = FastAPI(...)`). Ao trazer a `main` para a branch com `git merge`, o conflito é resolvido mantendo as duas mudanças: o título novo e a versão.
+4. **Tag:** depois do merge da PR, a `main` recebe a tag anotada `v1.1.0`.
+
+#### Validação
+
+| Comando | Saída esperada |
+| --- | --- |
+| `git log --oneline -3` (na branch) | Três commits começando com `feat:`, `fix:`, `docs:` ou `refactor:` |
+| `git tag` | `v1.1.0` |
+| `git show v1.1.0 --stat` | Commit de merge da PR na `main` |
+| `git status` (após o merge) | `nothing to commit, working tree clean` |
