@@ -8,6 +8,7 @@ Repositório com os exercícios práticos do curso de **Software Engineer** do *
 | --- | --- | --- |
 | [Colocando a API de pé](#colocando-a-api-de-pé) | Docker e Docker Compose | [`docker-api/`](docker-api/) |
 | [Fluxo completo em um repositório](#fluxo-completo-em-um-repositório) | Git, GitHub e Conventional Commits | [`docker-api/`](docker-api/) |
+| [Modelar um carrinho](#modelar-um-carrinho) | Programação orientada a objetos em TypeScript | [`shopping-cart/`](shopping-cart/) |
 
 ---
 
@@ -83,3 +84,64 @@ Exercício de **Git** e **GitHub**: o ciclo completo de uma mudança, da branch 
 | `git tag` | `v1.1.0` |
 | `git show v1.1.0 --stat` | Commit de merge da PR na `main` |
 | `git status` (após o merge) | `nothing to commit, working tree clean` |
+
+---
+
+### Modelar um carrinho
+
+Exercício de **programação orientada a objetos**: um carrinho de compras em **TypeScript** que aplica encapsulamento, abstração, polimorfismo e herança.
+
+#### Regras
+
+- Um item tem nome, preço unitário e quantidade. A quantidade precisa ser inteira e positiva.
+- O carrinho não aceita novos itens depois de finalizado.
+- Um cupom de desconto é um contrato com o método `apply(total: number): number`. Há dois cupons: percentual e de valor fixo.
+- O total nunca é negativo.
+
+Seguindo o padrão de nomes em inglês, `aplicar()` virou `apply()`, `total()` virou `calculateTotal()` e `finalizar()` virou `finalize()`.
+
+#### Estrutura
+
+```
+shopping-cart/
+├── src/
+│   ├── cart.ts                 # Carrinho: guarda os itens e o cupom, calcula o total
+│   ├── cart-item.ts            # Item com validação de quantidade e preço
+│   ├── cart-errors.ts          # InvalidQuantityError e FinalizedCartError
+│   ├── discount-coupon.ts      # Contrato (interface) DiscountCoupon
+│   ├── percentage-coupon.ts    # Cupom percentual
+│   └── fixed-amount-coupon.ts  # Cupom de valor fixo
+├── test/
+│   └── cart.test.ts            # Casos de teste do exercício e de encapsulamento
+├── package.json
+└── tsconfig.json
+```
+
+#### Como rodar
+
+Pré-requisito: Node.js 23.6 ou mais recente, que executa TypeScript sem compilação.
+
+```bash
+cd shopping-cart
+npm install
+npm test            # roda os testes com o test runner nativo do Node
+npm run typecheck   # checa os tipos com o tsc
+```
+
+#### Casos de teste
+
+| Entrada | Ação | Saída esperada |
+| --- | --- | --- |
+| Item "Livro", preço 50, quantidade 2 | `calculateTotal()` | `100` |
+| Mesmo carrinho com cupom de 10% | `calculateTotal()` após aplicar | `90` |
+| Item com quantidade 0 | `addItem()` | `InvalidQuantityError` |
+| Adicionar item após `finalize()` | `addItem()` | `FinalizedCartError` |
+| Cupom de valor fixo de 150 sobre total de 100 | `calculateTotal()` | `0` |
+
+#### Decisões
+
+- **Encapsulamento:** os campos usam `#`, que é privado também em tempo de execução, e não só para o compilador. O `getItems()` devolve uma cópia da lista, e os itens não têm setters. A única forma de mudar o carrinho é pelos métodos dele.
+- **Abstração e polimorfismo:** o carrinho só conhece a interface `DiscountCoupon` e chama `coupon.apply(subtotal)`, sem saber qual cupom recebeu. Um cupom novo não exige mudar o `Cart`.
+- **Total nunca negativo:** o limite em zero fica no `Cart`, e não em cada cupom. Assim nenhuma implementação de cupom consegue quebrar essa regra.
+- **Herança:** `InvalidQuantityError` estende `RangeError` e `FinalizedCartError` estende `Error`. Os testes verificam o tipo exato de cada erro.
+- **Carrinho finalizado:** além de novos itens, o carrinho finalizado também recusa cupons, porque o total de uma compra fechada não deve mudar.
