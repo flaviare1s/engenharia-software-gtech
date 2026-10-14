@@ -1,0 +1,39 @@
+# Credenciais compartilhadas entre app e db; os valores padrão permitem subir sem .env
+x-database-credentials: &database-credentials
+  POSTGRES_DB: ${POSTGRES_DB:-api}
+  POSTGRES_USER: ${POSTGRES_USER:-api}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-api}
+
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      <<: *database-credentials
+      POSTGRES_HOST: db
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      # A imagem slim não tem curl, então o próprio Python faz a requisição
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  db:
+    image: postgres:17-alpine
+    environment:
+      <<: *database-credentials
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  db-data:
