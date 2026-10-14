@@ -6,7 +6,7 @@ from fastapi import FastAPI, HTTPException, status
 APP_VERSION = "1.1.0"
 DATABASE_CONNECT_TIMEOUT_SECONDS = 3
 
-app = FastAPI(title="API de testes", version=APP_VERSION)
+app = FastAPI(title="Geração Tech API", version=APP_VERSION)
 
 
 def connect_to_database() -> psycopg.Connection:
