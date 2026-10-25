@@ -9,6 +9,7 @@ Repositório com os exercícios práticos do curso de **Software Engineer** do *
 | [Colocando a API de pé](#colocando-a-api-de-pé) | Docker e Docker Compose | [`docker-api/`](docker-api/) |
 | [Fluxo completo em um repositório](#fluxo-completo-em-um-repositório) | Git, GitHub e Conventional Commits | [`docker-api/`](docker-api/) |
 | [Modelar um carrinho](#modelar-um-carrinho) | Programação orientada a objetos em TypeScript | [`shopping-cart/`](shopping-cart/) |
+| [Refatorar um módulo de pedidos](#refatorar-um-módulo-de-pedidos) | Clean Code e POO em TypeScript | [`order-refactoring/`](order-refactoring/) |
 
 ---
 
@@ -145,3 +146,87 @@ npm run typecheck   # checa os tipos com o tsc
 - **Total nunca negativo:** o limite em zero fica no `Cart`, e não em cada cupom. Assim nenhuma implementação de cupom consegue quebrar essa regra.
 - **Herança:** `InvalidQuantityError` estende `RangeError` e `FinalizedCartError` estende `Error`. Os testes verificam o tipo exato de cada erro.
 - **Carrinho finalizado:** além de novos itens, o carrinho finalizado também recusa cupons, porque o total de uma compra fechada não deve mudar.
+
+---
+
+### Refatorar um módulo de pedidos
+
+Exercício de **Clean Code** e **POO**: reescrever uma função legada que calcula o valor de um pedido e envia notificações, sem mudar o que ela faz.
+
+#### Código legado
+
+```ts
+function processar(pedido: any, tipo: string, enviarEmail: boolean) {
+  let t = 0;
+  for (const i of pedido.itens) t += i.p * i.q;
+  if (tipo === "vip") t = t * 0.9;
+  else if (tipo === "funcionario") t = t * 0.7;
+  if (t > 500) { console.log("pedido grande"); }
+  if (enviarEmail) { console.log("email para " + pedido.cliente); }
+  return t;
+}
+```
+
+#### O que mudou
+
+| Problema no legado | Refatoração |
+| --- | --- |
+| Nomes como `t`, `i.p`, `i.q` e `processar` | `subtotal`, `unitPrice`, `quantity`, `calculateTotal()` e `process()` |
+| `pedido: any` | Interfaces `Order` e `OrderItem` |
+| Cadeia de `if/else` sobre o `tipo` em string | Contrato `DiscountStrategy` com três implementações, injetado no `OrderService` |
+| Argumento flag `enviarEmail` | Método `sendOrderEmail()`, chamado só por quem quer enviar o email |
+| Cálculo e notificação na mesma função | `OrderService` calcula, `OrderNotifier` notifica e `OrderProcessor` coordena os dois |
+| Números mágicos `0.9`, `0.7` e `500` | Constantes nomeadas |
+
+Como fica o uso:
+
+```ts
+// antes
+processar(pedido, "vip", true);
+
+// depois
+const notifier = new ConsoleOrderNotifier();
+const processor = new OrderProcessor(new OrderService(new VipDiscount()), notifier);
+const total = processor.process(order);
+notifier.sendOrderEmail(order.customer); // só quando quiser enviar o email
+```
+
+#### Estrutura
+
+```
+order-refactoring/
+├── src/
+│   ├── order.ts                # Tipos Order e OrderItem, cálculo do subtotal e regra de pedido grande
+│   ├── discount-strategies.ts  # Contrato DiscountStrategy e os descontos regular, VIP e de funcionário
+│   ├── order-service.ts        # OrderService: calcula o total com a estratégia de desconto injetada
+│   ├── order-notifier.ts       # Contrato OrderNotifier e a implementação que escreve no console
+│   └── order-processor.ts      # OrderProcessor: calcula o total e avisa quando o pedido é grande
+├── test/
+│   └── order.test.ts           # Casos de teste do exercício, das notificações e da regra de pedido grande
+├── package.json
+└── tsconfig.json
+```
+
+#### Como rodar
+
+```bash
+cd order-refactoring
+npm install
+npm test            # roda os testes com o Vitest
+npm run typecheck   # checa os tipos com o tsc
+```
+
+#### Casos de teste
+
+| Pedido | Desconto | Total esperado |
+| --- | --- | --- |
+| 1 item, preço 100, quantidade 2 | `RegularDiscount` | `200` |
+| 1 item, preço 100, quantidade 2 | `VipDiscount` (10%) | `180` |
+| 1 item, preço 100, quantidade 2 | `EmployeeDiscount` (30%) | `140` |
+
+#### Decisões
+
+- **Nomes em inglês:** seguindo o padrão do repositório, os nomes do esqueleto viraram `EstrategiaDesconto` → `DiscountStrategy`, `calcular()` → `apply()`, `DescontoComum`/`DescontoVip`/`DescontoFuncionario` → `RegularDiscount`/`VipDiscount`/`EmployeeDiscount`, `PedidoService` → `OrderService` e `calcularTotal()` → `calculateTotal()`. Os campos `p` e `q` dos itens viraram `unitPrice` e `quantity`.
+- **Comportamento preservado:** a regra de pedido grande continua sendo aplicada sobre o total já com desconto, com o limite estritamente acima de 500. As mensagens do console continuam as mesmas.
+- **Bug de ponto flutuante corrigido:** no legado, `700 * 0.7` dá `489.99999999999994`. Os descontos agora usam percentuais inteiros (`total - total * 30 / 100`), o que dá exatamente `490`.
+- **Notificação trocável:** o `OrderProcessor` depende do contrato `OrderNotifier`, e não do console. Nos testes ele recebe um notificador falso. Um envio de email de verdade seria só mais uma implementação.
